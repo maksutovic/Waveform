@@ -38,6 +38,7 @@ struct ContentView: View {
                         end = sampleEnd
                     }
                     .foregroundColor(.green)
+                    .highlightColor(.red)
 //                    .border(.red)
 //                    .frame(width:200)
                     .clipShape(Rectangle())

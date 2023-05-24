@@ -76,6 +76,8 @@ public struct Waveform: UIViewRepresentable {
     var length: Int
     var constants: Constants = Constants()
     
+    var highlightColor: Color = .blue
+    
     var highlightStart: Float // This will store the start of the selection
     var highlightWidth: Float // This will store the end of the selection
     
@@ -103,6 +105,12 @@ public struct Waveform: UIViewRepresentable {
             self.length = samples.samples.count
         }
     }
+    
+    public func highlightColor(_ color: Color) -> Waveform {
+        var newView = self
+        newView.highlightColor = color
+        return newView
+    }
 
     /// Required by UIViewRepresentable
     public class Coordinator {
@@ -128,10 +136,10 @@ public struct Waveform: UIViewRepresentable {
             let location = gesture.location(in: gesture.view)
             let width = gesture.view?.bounds.width ?? 1
             let normalizedLocation = Float(location.x / width)
-            print("Location:\(location)")
+            highlightView.backgroundColor = UIColor(parent.highlightColor).withAlphaComponent(0.3)
+
             switch gesture.state {
             case .began:
-                print("Gesture began at \(location)")
                 parent.highlightStart = normalizedLocation
                 gesture.view?.addSubview(highlightView)
                 highlightView.frame = CGRect(x: location.x, y: 0, width: 0, height: gesture.view?.bounds.height ?? 0)
