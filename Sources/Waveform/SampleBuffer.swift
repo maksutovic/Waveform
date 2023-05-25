@@ -16,3 +16,9 @@ public final class SampleBuffer: Sendable {
         samples.count
     }
 }
+
+extension SampleBuffer: Equatable {
+    public static func == (lhs: SampleBuffer, rhs: SampleBuffer) -> Bool {
+        return lhs.samples == rhs.samples
+    }
+}

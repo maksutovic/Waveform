@@ -78,9 +78,6 @@ public struct Waveform: UIViewRepresentable {
     
     var highlightColor: Color = .blue
     
-    var highlightStart: Float // This will store the start of the selection
-    var highlightWidth: Float // This will store the end of the selection
-    
     var onSelectionChange: ((Int, Int) -> Void)? // This function will be called when the selection changes
 
 
@@ -95,9 +92,7 @@ public struct Waveform: UIViewRepresentable {
         self.start = start
         
         self.onSelectionChange = onSelectionChange
-        
-        self.highlightStart = 0
-        self.highlightWidth = 0
+
 
         if length > 0 {
             self.length = length
@@ -117,6 +112,9 @@ public struct Waveform: UIViewRepresentable {
         var renderer: Renderer
         var parent: Waveform // Access to the parent view
         var onSelectionChange: ((Int, Int) -> Void)?
+        
+        var highlightStart: Float // This will store the start of the selection
+        var highlightWidth: Float // This will store the end of the selection
 
         let highlightView: UIView = {
             let view = UIView()
@@ -128,6 +126,10 @@ public struct Waveform: UIViewRepresentable {
             self.parent = parent
             renderer = Renderer(device: MTLCreateSystemDefaultDevice()!)
             renderer.constants = constants
+            
+            highlightStart = 0
+            highlightWidth = 0
+            
             self.onSelectionChange = onSelectionChange
         }
 
@@ -139,43 +141,42 @@ public struct Waveform: UIViewRepresentable {
             highlightView.backgroundColor = UIColor(parent.highlightColor).withAlphaComponent(0.3)
 
             switch gesture.state {
-            case .began:
-                parent.highlightStart = normalizedLocation
-                gesture.view?.addSubview(highlightView)
-                highlightView.frame = CGRect(x: location.x, y: 0, width: 0, height: gesture.view?.bounds.height ?? 0)
-            case .changed:
-                parent.highlightWidth = normalizedLocation
-                highlightView.frame.origin.x = CGFloat(min(parent.highlightStart, parent.highlightWidth)) * width
-                highlightView.frame.size.width = CGFloat(abs(parent.highlightWidth - parent.highlightStart)) * width
-            case .ended, .cancelled, .failed:
-                print("Ended, canceled or failed gesture")
-                //gesture.view?.removeSubview(highlightView)
-                // Compute the sample range based on the normalized highlight range
-                let sampleStart = Int(Float(renderer.samples.count) * parent.highlightStart)
-                var sampleEnd = Int(Float(renderer.samples.count) * parent.highlightWidth)
-                if sampleEnd >= renderer.samples.count {
-                    sampleEnd = renderer.samples.count
-                }
-                onSelectionChange?(sampleStart, sampleEnd)
-
-            default:
-                break
+                case .began:
+                    highlightStart = normalizedLocation
+                    gesture.view?.addSubview(highlightView)
+                    highlightView.frame = CGRect(x: location.x, y: 0, width: 0, height: gesture.view?.bounds.height ?? 0)
+                case .changed:
+                    highlightWidth = normalizedLocation
+                    highlightView.frame.origin.x = CGFloat(min(highlightStart, highlightWidth)) * width
+                    highlightView.frame.size.width = CGFloat(abs(highlightWidth - highlightStart)) * width
+                case .ended, .cancelled:
+                    // Compute the sample range based on the normalized highlight range
+                    let sampleStart = Int(Float(renderer.samples.count) * highlightStart)
+                    var sampleEnd = Int(Float(renderer.samples.count) * highlightWidth)
+                    if sampleEnd >= renderer.samples.count {
+                        sampleEnd = renderer.samples.count
+                    }
+                    onSelectionChange?(sampleStart, sampleEnd)
+                case .failed:
+                    clearHighlight()
+                default:
+                    break
             }
         }
         
         @objc
         func handleTapGesture(_ gesture: UITapGestureRecognizer) {
-            if gesture.state == .began {
-                print("Started long gesture:\(gesture.location(in: gesture.view))")
-            }
             if gesture.state == .ended {
-                print("Tap gesture ended, location:\(gesture.location(in: gesture.view))")
-                highlightView.removeFromSuperview()
-                parent.highlightStart = 0
-                parent.highlightWidth = 0
+                clearHighlight()
                 // Reset the sampleStart and sampleEnd
                 onSelectionChange?(0, 0)
             }
+        }
+        
+        func clearHighlight() {
+            highlightView.removeFromSuperview()
+            highlightStart = 0
+            highlightWidth = 0
         }
     }
 
@@ -197,8 +198,9 @@ public struct Waveform: UIViewRepresentable {
         let panGesture = UIPanGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handlePanGesture))
         metalView.addGestureRecognizer(panGesture)
         
-        let tapGesture = UILongPressGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handleTapGesture))
+        let tapGesture = UITapGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handleTapGesture))
         metalView.addGestureRecognizer(tapGesture)
+        
 
         return metalView
     }
@@ -207,6 +209,12 @@ public struct Waveform: UIViewRepresentable {
     public func updateUIView(_ uiView: UIViewType, context: Context) {
         let renderer = context.coordinator.renderer
         renderer.constants = constants
+        
+        if renderer.samples != samples {
+            // Clear the highlight
+            context.coordinator.clearHighlight()
+        }
+        
         Task {
             await renderer.set(samples: samples,
                                start: start,

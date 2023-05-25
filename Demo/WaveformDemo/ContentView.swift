@@ -4,10 +4,34 @@ import AVFoundation
 import SwiftUI
 import Waveform
 
+enum FileType: String, CaseIterable, Identifiable {
+    case piano
+    case beat
+    
+    var id: String { self.rawValue }
+    
+    var url: URL {
+        switch self {
+            case .piano:
+                return Bundle.main.url(forResource: "Piano", withExtension: "mp3")!
+            case .beat:
+                return Bundle.main.url(forResource: "beat", withExtension: "aiff")!
+        }
+    }
+}
+
 class WaveformDemoModel: ObservableObject {
-    var samples: SampleBuffer
+    @Published var samples: SampleBuffer
 
     init(file: AVAudioFile) {
+        let stereo = file.floatChannelData()!
+        samples = SampleBuffer(samples: stereo[0])
+    }
+    
+    func changeFile(_ type: FileType) {
+        let url = type.url
+        let file = try! AVAudioFile(forReading: url)
+        
         let stereo = file.floatChannelData()!
         samples = SampleBuffer(samples: stereo[0])
     }
@@ -29,6 +53,8 @@ struct ContentView: View {
     @State var end: Int = 1
     
     let formatter = NumberFormatter()
+    
+    @State var fileType: FileType = .piano
     var body: some View {
         VStack {
             ZStack(alignment: .leading) {
@@ -37,17 +63,27 @@ struct ContentView: View {
                         start = sampleStart
                         end = sampleEnd
                     }
-                    .foregroundColor(.green)
-                    .highlightColor(.red)
+                    .foregroundColor(.white)
+                    .highlightColor(.blue)
 //                    .border(.red)
 //                    .frame(width:200)
                     .clipShape(Rectangle())
+                    
 //                    .background(Color.clear)
 //                    .padding(10)
                     HStack {
                         Text("Start: \(start)")
                         Text("End: \(end)")
                         Text("Sample Length: \(model.samples.count)")
+                    }
+                    Picker("FileType", selection: $fileType) {
+                        ForEach(FileType.allCases) { fileType in
+                            Text(fileType.rawValue.capitalized).tag(fileType)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .onChange(of: fileType) { newValue in
+                        model.changeFile(newValue)
                     }
                 }
 
