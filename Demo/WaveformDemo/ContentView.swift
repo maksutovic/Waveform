@@ -25,41 +25,24 @@ func clamp(_ x: Double, _ inf: Double, _ sup: Double) -> Double {
 struct ContentView: View {
     @StateObject var model = WaveformDemoModel(file: getFile())
 
-    @State var start: Int = 0
-    @State var end: Int = 1
-    
+    @State var start = 0.0
+    @State var length = 1.0
+
     let formatter = NumberFormatter()
     var body: some View {
         VStack {
             ZStack(alignment: .leading) {
-                VStack {
-                    Waveform(samples: model.samples) { sampleStart, sampleEnd in
-                        start = sampleStart
-                        end = sampleEnd
-                    }
-                    .foregroundColor(.green)
-                    .highlightColor(.red)
-//                    .border(.red)
-//                    .frame(width:200)
-                    .clipShape(Rectangle())
-//                    .background(Color.clear)
-//                    .padding(10)
-                    HStack {
-                        Text("Start: \(start)")
-                        Text("End: \(end)")
-                        Text("Sample Length: \(model.samples.count)")
-                    }
-                }
-
-                //MinimapView(start: $start, length: $length)
+                Waveform(samples: model.samples).foregroundColor(.cyan)
+                    .padding(.vertical, 5)
+                MinimapView(start: $start, length: $length)
             }
-//            .frame(height: 100)
-//            .padding()
-//            Waveform(samples: model.samples,
-//                     start: Int(start * Double(model.samples.count - 1)),
-//                     length: Int(length * Double(model.samples.count)))
-//            .foregroundColor(.blue)
+            .frame(height: 100)
+            .padding()
+            Waveform(samples: model.samples,
+                     start: Int(start * Double(model.samples.count - 1)),
+                     length: Int(length * Double(model.samples.count)))
+            .foregroundColor(.blue)
         }
-//        .padding()
+        .padding()
     }
 }
