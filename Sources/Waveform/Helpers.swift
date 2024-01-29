@@ -8,6 +8,8 @@ import SwiftUI
 import UIKit
 #elseif canImport(AppKit)
 import AppKit
+#elseif canImport(CompositorServices)
+import CompositorServices
 #endif
 
 /// Returns the minimums of chunks of binSize.
